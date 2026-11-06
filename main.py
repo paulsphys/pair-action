@@ -11,6 +11,7 @@ parser.add_argument('--dim',type=int,default=2,help="The dimension of the the si
 parser.add_argument('--dr',type=float,default=0.04,help="Radial grid spacing")
 parser.add_argument('--box',type=float,nargs='+',default=None,help="Side lengths of the rectangular box, one per dimension")
 parser.add_argument('-n',type=int,default=2,help="Order of the (q,s,z) expansion")
+parser.add_argument('--n_d',type=int,default=2,help="Number of matrix squarings")
 parsed_args = vars(parser.parse_args())
  
 lam = 24.24/parsed_args["m"]
@@ -30,8 +31,11 @@ if parsed_args["box"] is not None:
     r_max = np.sqrt(np.sum((box/2)**2)) + 3*np.sqrt(2*lam_rel*tau)
 grid = np.arange(r_min, r_max, parsed_args["dr"])
 
-n_d = max(0, int(np.floor(np.log2(2*lam_rel*tau/(3*parsed_args["dr"])**2))))
- 
+#n_d = max(0, int(np.floor(np.log2(2*lam_rel*tau/(3*parsed_args["dr"])**2))))
+if parsed_args["n_d"] is None:
+    n_d = max(0, int(np.floor(np.log2(2*lam_rel*tau/parsed_args["dr"]**2))))
+else:
+    n_d = parsed_args["n_d"]
 def write_tables(q, coeff, ud, tag):
     hdr = f"tau {tau} lam_rel {lam_rel} n {n} dim {dim}"
     np.savetxt(f"ukj{tag}.dat", np.column_stack([q, coeff]), header=hdr)
@@ -50,7 +54,7 @@ def calc_pair_action(lam,tau,err,order):
 def main():
     print(f"dim {dim}, tau {tau}, lam_rel {lam_rel}, grid [{grid[0]:.3f}, {grid[-1]:.3f}] N={len(grid)}, n_d {n_d}, ord {order}, n {n}")
     if dim in [1,2,3]:
-        stat = calc_pair_action(lam,tau,err,order)      
+        stat = calc_pair_action(lam_rel,tau,err,order)      
     else:
         print("Dimension ",dim," not supported")
         stat = False
