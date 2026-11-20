@@ -18,7 +18,7 @@ def dF(x,D):
     return np.where(x < D, r, 0.0)
 def Aziz_potential(r):
     EPS     = 1.0E-7
-    rm      = 2.9683
+    rm      = 2.9673
     A       = 0.5448504E6;
     epsilon = 10.8;
     alpha   = 13.353384
@@ -182,7 +182,7 @@ def vec(x, th, dim):
     return v
 
 
-def fit_ukj(grid,lam,tau,n_d,order,n,func,dim,cache,m_max=5,n_theta=10):
+def fit_ukj(grid,lam,tau,n_d,order,n,func,dim,cache,m_max=10,n_theta=20):
     N = len(grid)
     ud = np.array([func(vec(g,0,dim),vec(g,0,dim),grid,lam,tau,n_d,order,dim,cache) for g in grid])
 
@@ -223,3 +223,4 @@ def eval_U(rvec, rprvec, qs, coeffs, grid, ud, n, dim):
     bs = basis(s,z,n,dim)                                           
     ukj = [np.interp(q, qs, coeffs[:,i]) for i in range(len(bs))]
     return (np.interp(a, grid, ud) + np.interp(b, grid, ud))/2 + np.dot(ukj, bs)
+
