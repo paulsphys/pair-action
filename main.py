@@ -30,7 +30,10 @@ dr = parsed_args["dr"]
 suffix = parsed_args["suffix"]
 
 lam_rel = 2*lam
- 
+
+#Specify the potential function 
+pot_f = potential.szalewicz_2012
+
 rs = np.arange(0.5, 5.0, 0.001)
 r_min = rs[np.argmax(np.array([tau*Aziz_potential(x) for x in rs]) < 30)]
 if parsed_args["box"] is not None:
@@ -61,6 +64,7 @@ def write_metadata(lam_rel,tau,err,order,n_d,grid):
     # 1. Initialize the config parser
     write_ini(f'config_{suffix}.ini', {
         'Simulation Parameters': {
+            'potential' :pot_f,
             'dim': dim,
             'tau': tau,
             'box': [f'{b:.3f}' for b in box],
@@ -94,7 +98,7 @@ def calc_pair_action(lam,tau,err,order,n_d,grid):
     res = {}
     write_metadata(lam,tau,err,order,n_d,grid)
     for func, tag,n_f in [(pair_action, "",n), (pair_action_dtau, "_dtau",n_t), (pair_action_dlam, "_dlam",n)]:
-        q, coeff, ud, resid = fit_ukj(grid,lam,tau,n_d,order,n_f,func,dim,cache)
+        q, coeff, ud, resid = fit_ukj(grid,lam,tau,n_d,order,n_f,func,dim,cache,pot_f)
         write_tables(q, coeff, ud, tag)
         print(f"u{tag}: max fit residual {np.max(resid):.2e}")
         res[tag] = np.max(resid)

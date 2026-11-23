@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.special as scp
 from scipy import integrate
+from heprops import potential
 
 #Aziz Potential and it's derivative
 def F(x,D):
@@ -44,9 +45,8 @@ def Aziz_potential(r):
     return float(val)
 def free_prop_1d(x1,x2, tau, lam):
     return (1.0 / np.sqrt(4.0 * np.pi * lam * tau)) * np.exp(-(x1 - x2) ** 2 / (4.0 * lam * tau))
-
 _vbar_cache = {}
-def avg_V_matrix(r):
+def avg_V_matrix(r,pot_f):
     #line-averaged potential on the whole grid,
     key = (r[0], r[-1], len(r))
     if key not in _vbar_cache:
@@ -55,7 +55,7 @@ def avg_V_matrix(r):
         for a in range(N):
             Vb[a, a] = Aziz_potential(r[a])
             for b in range(a+1, N):
-                Vb[a, b] = Vb[b, a] = integrate.quad(Aziz_potential, r[a], r[b])[0] / (r[b] - r[a])
+                Vb[a, b] = Vb[b, a] = integrate.quad(pot_f, r[a], r[b])[0] / (r[b] - r[a])
         _vbar_cache[key] = Vb
     return _vbar_cache[key]
 
@@ -103,14 +103,14 @@ def highT_action_dlam(l,r,rpr,tau,lam,dim,avg_V):
     return rhofree * np.exp(-tau*avg_V) * dll                    
 
 #Build low tau action by squaring
-def build_pair_table(l, tau, n_d, r, lam, dim, _pair_table_cache):
+def build_pair_table(l, tau, n_d, r, lam, dim, _pair_table_cache, pot_f):
     key = (l, round(tau, 12), n_d, r[0], r[-1], len(r))
     if key in _pair_table_cache:
         return _pair_table_cache[key]
     dr = r[1] - r[0]
     taui = tau / 2**n_d
     R, Rp = r[:, None], r[None, :]                                
-    Vb = avg_V_matrix(r)
+    Vb = avg_V_matrix(r, pot_f)
     rho  = highT_action(l, R, Rp, taui, lam, dim, Vb)
     dt   = highT_action_dtau(l, R, Rp, taui, lam, dim, Vb)
     dlam = highT_action_dlam(l, R, Rp, taui, lam, dim, Vb)
@@ -120,7 +120,7 @@ def build_pair_table(l, tau, n_d, r, lam, dim, _pair_table_cache):
     return rho,dt,dlam
 
 #Do a partial wave summation
-def partial_wave_summation(rvec,rprvec,grid,lam,tau,n_d,order,dim,cache):
+def partial_wave_summation(rvec,rprvec,grid,lam,tau,n_d,order,dim,cache, pot_f):
     a, b = np.linalg.norm(rvec), np.linalg.norm(rprvec)
     i, j = np.argmin(np.abs(grid - a)), np.argmin(np.abs(grid - b))
     if(dim == 1):                                                 
@@ -132,7 +132,7 @@ def partial_wave_summation(rvec,rprvec,grid,lam,tau,n_d,order,dim,cache):
     if(dim == 2):
         coeff = 1/(2*np.pi*np.sqrt(a*b))
         for l in range(-order,order+1):
-            values = [t[i, j] for t in build_pair_table(abs(l), tau, n_d, grid, lam, dim, cache)]
+            values = [t[i, j] for t in build_pair_table(abs(l), tau, n_d, grid, lam, dim, cache, pot_f)]
             val += values[0]*np.exp(1j*l*theta)
             valtau += values[1]*np.exp(1j*l*theta)
             vallam += values[2]*np.exp(1j*l*theta)
@@ -151,20 +151,20 @@ def ln_rho0(rvec,rprvec,lam,tau,dim):
     return -s2/(4*lam*tau) - 0.5*dim*np.log(4*np.pi*lam*tau), s2
 
 #Pair action u = -ln(rho/rho_free)
-def pair_action(rvec,rprvec,grid,lam,tau,n_d,order,dim,cache):
-    rho = partial_wave_summation(rvec,rprvec,grid,lam,tau,n_d,order,dim,cache)[0]
+def pair_action(rvec,rprvec,grid,lam,tau,n_d,order,dim,cache,pot_f):
+    rho = partial_wave_summation(rvec,rprvec,grid,lam,tau,n_d,order,dim,cache,pot_f)[0]
     lr0, _ = ln_rho0(rvec,rprvec,lam,tau,dim)
     return -np.log(rho) + lr0
 
 # du/dtau = -(drho/dtau)/rho + d ln(rho0)/dtau
-def pair_action_dtau(rvec,rprvec,grid,lam,tau,n_d,order,dim,cache):
-    rho, drho, _ = partial_wave_summation(rvec,rprvec,grid,lam,tau,n_d,order,dim,cache)
+def pair_action_dtau(rvec,rprvec,grid,lam,tau,n_d,order,dim,cache,pot_f):
+    rho, drho, _ = partial_wave_summation(rvec,rprvec,grid,lam,tau,n_d,order,dim,cache,pot_f)
     _, s2 = ln_rho0(rvec,rprvec,lam,tau,dim)
     return -drho/rho - dim/(2*tau) + s2/(4*lam*tau**2)
 
 # du/dlam = -(drho/dlam)/rho + d ln(rho0)/dlam
-def pair_action_dlam(rvec,rprvec,grid,lam,tau,n_d,order,dim,cache):
-    rho, _, drho = partial_wave_summation(rvec,rprvec,grid,lam,tau,n_d,order,dim,cache)
+def pair_action_dlam(rvec,rprvec,grid,lam,tau,n_d,order,dim,cache,pot_f):
+    rho, _, drho = partial_wave_summation(rvec,rprvec,grid,lam,tau,n_d,order,dim,cache,pot_f)
     _, s2 = ln_rho0(rvec,rprvec,lam,tau,dim)
     return -drho/rho - dim/(2*lam) + s2/(4*lam**2*tau)
 
@@ -182,9 +182,9 @@ def vec(x, th, dim):
     return v
 
 
-def fit_ukj(grid,lam,tau,n_d,order,n,func,dim,cache,m_max=10,n_theta=20):
+def fit_ukj(grid,lam,tau,n_d,order,n,func,dim,cache,pot_f,m_max=10,n_theta=20):
     N = len(grid)
-    ud = np.array([func(vec(g,0,dim),vec(g,0,dim),grid,lam,tau,n_d,order,dim,cache) for g in grid])
+    ud = np.array([func(vec(g,0,dim),vec(g,0,dim),grid,lam,tau,n_d,order,dim,cache,pot_f) for g in grid])
 
     width = np.sqrt(2*lam*tau)
     step = max(1, int(round(4*width/(2*m_max*(grid[1]-grid[0])))))
@@ -202,7 +202,7 @@ def fit_ukj(grid,lam,tau,n_d,order,n,func,dim,cache,m_max=10,n_theta=20):
                 rprvec = vec(b,th,dim)
                 s = np.linalg.norm(rvec - rprvec)
                 z = a - b
-                y.append(func(rvec,rprvec,grid,lam,tau,n_d,order,dim,cache) - (ud[ia] + ud[ib])/2)
+                y.append(func(rvec,rprvec,grid,lam,tau,n_d,order,dim,cache,pot_f) - (ud[ia] + ud[ib])/2)
                 A.append(basis(s,z,n,dim))
                 sA.append(s*s)
         A, y = np.array(A), np.array(y)
