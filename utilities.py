@@ -124,7 +124,7 @@ def partial_wave_summation(rvec,rprvec,grid,lam,tau,n_d,order,dim,cache, pot_f):
     a, b = np.linalg.norm(rvec), np.linalg.norm(rprvec)
     i, j = np.argmin(np.abs(grid - a)), np.argmin(np.abs(grid - b))
     if(dim == 1):                                                 
-        return tuple(t[i, j] for t in build_pair_table(0, tau, n_d, grid, lam, dim, cache))
+        return tuple(t[i, j] for t in build_pair_table(0, tau, n_d, grid, lam, dim, cache,pot_f))
     theta = np.arccos(np.clip(np.dot(rvec,rprvec)/(a*b), -1, 1))
     val = 0
     valtau = 0
@@ -139,7 +139,7 @@ def partial_wave_summation(rvec,rprvec,grid,lam,tau,n_d,order,dim,cache, pot_f):
     elif(dim == 3):
         coeff = 1/(4*np.pi*a*b)
         for l in range(0,order+1):                                
-            values = [t[i, j] for t in build_pair_table(l, tau, n_d, grid, lam, dim, cache)]
+            values = [t[i, j] for t in build_pair_table(l, tau, n_d, grid, lam, dim, cache, pot_f)]
             P = (2*l+1)*scp.eval_legendre(l, np.cos(theta))
             val += values[0]*P
             valtau += values[1]*P

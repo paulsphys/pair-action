@@ -32,7 +32,7 @@ suffix = parsed_args["suffix"]
 lam_rel = 2*lam
 
 #Specify the potential function 
-pot_f = potential.szalewicz_2012
+pot_f = potential.aziz_1995
 
 rs = np.arange(0.5, 5.0, 0.001)
 r_min = rs[np.argmax(np.array([tau*Aziz_potential(x) for x in rs]) < 30)]
@@ -64,7 +64,7 @@ def write_metadata(lam_rel,tau,err,order,n_d,grid):
     # 1. Initialize the config parser
     write_ini(f'config_{suffix}.ini', {
         'Simulation Parameters': {
-            'potential' :pot_f,
+            'potential' :pot_f.__name__,
             'dim': dim,
             'tau': tau,
             'box': [f'{b:.3f}' for b in box],
